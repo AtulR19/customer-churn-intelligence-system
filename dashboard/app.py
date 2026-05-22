@@ -39,6 +39,20 @@ MODERATE_RISK_THRESHOLD = 0.3
 RETENTION_COST_RATE = 0.15
 RETENTION_SUCCESS_RATE = 0.25
 
+PLOTLY_CHART_CONFIG = {
+    "displayModeBar": True,
+    "displaylogo": False,
+    "scrollZoom": False,
+    "doubleClick": "reset",
+    "responsive": True,
+    "modeBarButtonsToRemove": [
+        "zoom2d",
+        "pan2d",
+        "select2d",
+        "lasso2d",
+    ],
+}
+
 
 def configure_page() -> None:
     """Configure Streamlit and apply dashboard styling."""
@@ -549,6 +563,61 @@ def render_kpi_card(label: str, value: str, help_text: str) -> None:
         </div>
         """,
         unsafe_allow_html=True,
+    )
+
+
+def style_plotly_chart(fig: go.Figure) -> go.Figure:
+    """Apply consistent dashboard styling and non-drag zoom behavior."""
+    fig.update_layout(
+        template="plotly_white",
+        dragmode=False,
+        hovermode="closest",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(255,255,255,0)",
+        font={"family": "Inter, Segoe UI, Arial, sans-serif", "color": "#17202a"},
+        title={
+            "font": {"size": 18, "color": "#17202a"},
+            "x": 0.02,
+            "xanchor": "left",
+        },
+        margin={"l": 50, "r": 30, "t": 72, "b": 48},
+        hoverlabel={
+            "bgcolor": "#ffffff",
+            "bordercolor": "#d0d5dd",
+            "font_size": 12,
+            "font_color": "#344054",
+        },
+        legend={
+            "bgcolor": "rgba(255,255,255,0)",
+            "font": {"size": 12},
+        },
+        transition={"duration": 260, "easing": "cubic-in-out"},
+    )
+    fig.update_xaxes(
+        showgrid=True,
+        gridcolor="#e6e8ee",
+        zeroline=False,
+        linecolor="#d0d5dd",
+        tickfont={"color": "#667085"},
+        fixedrange=False,
+    )
+    fig.update_yaxes(
+        showgrid=True,
+        gridcolor="#e6e8ee",
+        zeroline=False,
+        linecolor="#d0d5dd",
+        tickfont={"color": "#667085"},
+        fixedrange=False,
+    )
+    return fig
+
+
+def render_plotly_chart(fig: go.Figure, *, use_container_width: bool = True) -> None:
+    """Render an interactive Plotly chart without accidental drag zoom."""
+    st.plotly_chart(
+        style_plotly_chart(fig),
+        use_container_width=use_container_width,
+        config=PLOTLY_CHART_CONFIG,
     )
 
 
@@ -1083,7 +1152,7 @@ def render_executive_overview(data: pd.DataFrame, scored: pd.DataFrame, model_bu
         )
         fig.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
         fig.update_layout(showlegend=False, yaxis_title="Churn rate (%)", xaxis_title=None, height=390)
-        st.plotly_chart(fig, use_container_width=True)
+        render_plotly_chart(fig)
 
     with right:
         risk_counts = scored["RiskBand"].value_counts(dropna=False).rename_axis("RiskBand").reset_index(name="Customers")
@@ -1098,7 +1167,7 @@ def render_executive_overview(data: pd.DataFrame, scored: pd.DataFrame, model_bu
         )
         fig.update_traces(textposition="inside", textinfo="percent+label")
         fig.update_layout(height=390)
-        st.plotly_chart(fig, use_container_width=True)
+        render_plotly_chart(fig)
 
     st.subheader("Business Recommendations")
     recommendation_cols = st.columns(4)
@@ -1127,7 +1196,7 @@ def render_executive_overview(data: pd.DataFrame, scored: pd.DataFrame, model_bu
         )
         fig.update_traces(line_width=3)
         fig.update_layout(yaxis_title="Churn rate (%)", xaxis_title="Tenure in months", height=360)
-        st.plotly_chart(fig, use_container_width=True)
+        render_plotly_chart(fig)
 
     with lower_right:
         if model_bundle:
@@ -1147,7 +1216,7 @@ def render_executive_overview(data: pd.DataFrame, scored: pd.DataFrame, model_bu
             color_continuous_scale=["#dbeafe", "#2563eb"],
         )
         fig.update_layout(xaxis_title="Churn rate (%)", yaxis_title=None, height=300, coloraxis_showscale=False)
-        st.plotly_chart(fig, use_container_width=True)
+        render_plotly_chart(fig)
 
 
 def render_churn_analytics(data: pd.DataFrame, scored: pd.DataFrame) -> None:
@@ -1184,7 +1253,7 @@ def render_churn_analytics(data: pd.DataFrame, scored: pd.DataFrame) -> None:
         churn_counts = filtered["Churn"].value_counts().rename_axis("Churn").reset_index(name="Customers")
         fig = px.bar(churn_counts, x="Churn", y="Customers", color="Churn", title="Churn Distribution")
         fig.update_layout(showlegend=False, height=380)
-        st.plotly_chart(fig, use_container_width=True)
+        render_plotly_chart(fig)
 
     with first_row[1]:
         fig = px.histogram(
@@ -1197,7 +1266,7 @@ def render_churn_analytics(data: pd.DataFrame, scored: pd.DataFrame) -> None:
             title="Tenure Distribution by Churn",
         )
         fig.update_layout(xaxis_title="Tenure (months)", yaxis_title="Customers", height=380)
-        st.plotly_chart(fig, use_container_width=True)
+        render_plotly_chart(fig)
 
     second_row = st.columns(2)
     with second_row[0]:
@@ -1210,7 +1279,7 @@ def render_churn_analytics(data: pd.DataFrame, scored: pd.DataFrame) -> None:
             title="Monthly Charges by Contract and Churn",
         )
         fig.update_layout(xaxis_title=None, yaxis_title="Monthly charges", height=420)
-        st.plotly_chart(fig, use_container_width=True)
+        render_plotly_chart(fig)
 
     with second_row[1]:
         internet = churn_rate_by(filtered, "InternetService").sort_values("ChurnRatePct", ascending=False)
@@ -1224,7 +1293,7 @@ def render_churn_analytics(data: pd.DataFrame, scored: pd.DataFrame) -> None:
         )
         fig.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
         fig.update_layout(showlegend=False, yaxis_title="Churn rate (%)", xaxis_title=None, height=420)
-        st.plotly_chart(fig, use_container_width=True)
+        render_plotly_chart(fig)
 
     fig = px.scatter(
         filtered,
@@ -1236,7 +1305,7 @@ def render_churn_analytics(data: pd.DataFrame, scored: pd.DataFrame) -> None:
         title="Customer Map: Tenure, Charges, and Predicted Risk",
     )
     fig.update_layout(xaxis_title="Tenure (months)", yaxis_title="Monthly charges", height=520)
-    st.plotly_chart(fig, use_container_width=True)
+    render_plotly_chart(fig)
 
 
 def render_business_impact(scored: pd.DataFrame) -> None:
@@ -1292,7 +1361,7 @@ def render_business_impact(scored: pd.DataFrame) -> None:
             )
             fig.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
             fig.update_layout(yaxis_title="Expected annual loss", xaxis_title=None, height=430, coloraxis_colorbar_title="Avg risk %")
-            st.plotly_chart(fig, use_container_width=True)
+            render_plotly_chart(fig)
     with right:
         st.subheader("Action Priorities")
         for recommendation in build_business_recommendations(scored):
@@ -1462,7 +1531,7 @@ def render_prediction_form(model_bundle: dict[str, Any] | None) -> None:
                     )
                 )
                 gauge.update_layout(height=290, margin=dict(l=20, r=20, t=20, b=20))
-                st.plotly_chart(gauge, use_container_width=True)
+                render_plotly_chart(gauge)
 
                 st.dataframe(input_data.T.rename(columns={0: "value"}), use_container_width=True)
                 st.download_button(
@@ -1543,7 +1612,7 @@ def render_prediction_form(model_bundle: dict[str, Any] | None) -> None:
                     color_discrete_map={"Low": "#16a34a", "Moderate": "#d97706", "High": "#dc2626"},
                 )
                 fig.update_layout(height=360)
-                st.plotly_chart(fig, use_container_width=True)
+                render_plotly_chart(fig)
 
                 st.download_button(
                     "Download Batch Prediction Report",
@@ -1612,7 +1681,7 @@ def render_shap_page() -> None:
                 },
             )
             fig.update_layout(xaxis_title="SHAP value", yaxis_title=None, height=460)
-            st.plotly_chart(fig, use_container_width=True)
+            render_plotly_chart(fig)
             st.dataframe(contributions, use_container_width=True, hide_index=True)
 
 
@@ -1649,7 +1718,7 @@ def render_model_comparison() -> None:
         title="Model Metrics",
     )
     fig.update_layout(yaxis_title="Score", xaxis_title=None, height=450)
-    st.plotly_chart(fig, use_container_width=True)
+    render_plotly_chart(fig)
     st.dataframe(comparison.style.format({column: "{:.4f}" for column in comparison.columns if column != "model"}), use_container_width=True)
 
     st.subheader("Confusion Matrices")
@@ -1667,7 +1736,7 @@ def render_model_comparison() -> None:
             title=f"{selected_model} Confusion Matrix",
         )
         fig.update_layout(height=440)
-        st.plotly_chart(fig, use_container_width=True)
+        render_plotly_chart(fig)
     else:
         st.info("No confusion matrix found for the selected model.")
 
