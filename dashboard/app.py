@@ -137,6 +137,85 @@ def configure_page() -> None:
                 box-shadow: 0 0 0 12px rgba(37, 99, 235, 0);
             }
         }
+        @keyframes introFade {
+            0% {
+                opacity: 1;
+                visibility: visible;
+            }
+            72% {
+                opacity: 1;
+                visibility: visible;
+            }
+            100% {
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+            }
+        }
+        @keyframes introTitle {
+            0% {
+                opacity: 0;
+                transform: translateY(18px) scale(0.985);
+                letter-spacing: 0.02em;
+            }
+            28% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+                letter-spacing: 0;
+            }
+            72% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+                letter-spacing: 0;
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-12px) scale(0.99);
+                letter-spacing: 0.03em;
+            }
+        }
+        @keyframes introLine {
+            from {
+                transform: scaleX(0);
+            }
+            to {
+                transform: scaleX(1);
+            }
+        }
+        .intro-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 999999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background:
+                radial-gradient(circle at 65% 35%, rgba(37,99,235,0.18), transparent 30%),
+                linear-gradient(135deg, #111827 0%, #17202a 55%, #0f172a 100%);
+            animation: introFade 1.5s ease forwards;
+            pointer-events: all;
+        }
+        .intro-content {
+            text-align: center;
+            color: #ffffff;
+            padding: 2rem;
+        }
+        .intro-title {
+            font-size: clamp(2.3rem, 7vw, 6.2rem);
+            line-height: 0.95;
+            font-weight: 900;
+            letter-spacing: 0;
+            margin-bottom: 1rem;
+            animation: introTitle 1.5s ease forwards;
+        }
+        .intro-rule {
+            width: min(460px, 70vw);
+            height: 3px;
+            margin: 0 auto;
+            background: linear-gradient(90deg, var(--blue), var(--cyan), var(--green));
+            transform-origin: left;
+            animation: introLine 0.9s ease 0.15s both;
+        }
         .stApp {
             background: #f6f8fb;
             color: var(--ink);
@@ -541,6 +620,17 @@ def configure_page() -> None:
             }
         }
         </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
+        <div class="intro-overlay">
+            <div class="intro-content">
+                <div class="intro-title">Churn Intellegence</div>
+                <div class="intro-rule"></div>
+            </div>
+        </div>
         """,
         unsafe_allow_html=True,
     )
