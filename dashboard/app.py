@@ -63,6 +63,66 @@ def configure_page() -> None:
             --amber: #d97706;
             --red: #dc2626;
         }
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(18px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        @keyframes slideLine {
+            from {
+                transform: scaleX(0);
+                transform-origin: left;
+            }
+            to {
+                transform: scaleX(1);
+                transform-origin: left;
+            }
+        }
+        @keyframes softFloat {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-8px);
+            }
+        }
+        @keyframes scan {
+            0% {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            15% {
+                opacity: 1;
+            }
+            85% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+        @keyframes pulseDot {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.24);
+            }
+            50% {
+                box-shadow: 0 0 0 12px rgba(37, 99, 235, 0);
+            }
+        }
         .stApp {
             background: #f6f8fb;
             color: var(--ink);
@@ -71,6 +131,9 @@ def configure_page() -> None:
             padding-top: 1.7rem;
             padding-bottom: 2.5rem;
             max-width: 1420px;
+        }
+        .main .block-container {
+            animation: fadeIn 0.55s ease both;
         }
         h1, h2, h3, h4, h5, h6, p, label, span {
             color: inherit;
@@ -84,17 +147,224 @@ def configure_page() -> None:
         section[data-testid="stSidebar"] [data-testid="stRadio"] label {
             color: #d1d5db;
         }
+        section[data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
+            color: #ffffff;
+            transform: translateX(3px);
+            transition: all 180ms ease;
+        }
+        .hero-shell {
+            position: relative;
+            display: grid;
+            grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+            gap: 1.4rem;
+            align-items: stretch;
+            padding: 1.35rem;
+            margin-bottom: 1.25rem;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,251,255,0.96)),
+                repeating-linear-gradient(90deg, rgba(37,99,235,0.06) 0 1px, transparent 1px 76px);
+            box-shadow: 0 22px 56px rgba(16, 24, 40, 0.08);
+            overflow: hidden;
+            animation: fadeUp 0.7s ease both;
+        }
+        .hero-shell::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--blue), var(--cyan), var(--green));
+            animation: slideLine 1s ease 0.15s both;
+        }
+        .hero-copy {
+            position: relative;
+            z-index: 1;
+            padding: 0.4rem 0.2rem;
+        }
+        .eyebrow-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.65rem;
+            align-items: center;
+            margin-bottom: 1rem;
+            color: var(--muted);
+            font-size: 0.76rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            animation: fadeUp 0.65s ease 0.1s both;
+        }
+        .eyebrow-chip {
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 0.38rem 0.65rem;
+            background: rgba(255,255,255,0.72);
+        }
+        .hero-title {
+            max-width: 860px;
+            color: var(--ink);
+            font-size: clamp(2.5rem, 6vw, 5.65rem);
+            line-height: 0.94;
+            font-weight: 900;
+            letter-spacing: 0;
+            margin: 0 0 1rem 0;
+            animation: fadeUp 0.72s ease 0.18s both;
+        }
+        .hero-subtitle {
+            max-width: 700px;
+            color: var(--muted);
+            font-size: 1.05rem;
+            line-height: 1.62;
+            margin-bottom: 1.4rem;
+            animation: fadeUp 0.72s ease 0.3s both;
+        }
+        .hero-stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.75rem;
+            animation: fadeUp 0.72s ease 0.42s both;
+        }
+        .hero-stat {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.82);
+            padding: 0.8rem;
+            transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+        }
+        .hero-stat:hover {
+            transform: translateY(-3px);
+            border-color: rgba(37, 99, 235, 0.32);
+            box-shadow: 0 16px 34px rgba(16, 24, 40, 0.08);
+        }
+        .hero-stat-value {
+            color: var(--ink);
+            font-size: 1.35rem;
+            font-weight: 900;
+            line-height: 1;
+            margin-bottom: 0.25rem;
+        }
+        .hero-stat-label {
+            color: var(--muted);
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .hero-visual {
+            position: relative;
+            min-height: 390px;
+            border: 1px solid rgba(230, 232, 238, 0.9);
+            border-radius: 8px;
+            background:
+                linear-gradient(180deg, rgba(17,24,39,0.96), rgba(23,32,42,0.94)),
+                repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 42px),
+                repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 42px);
+            overflow: hidden;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+            animation: fadeUp 0.75s ease 0.28s both, softFloat 7s ease-in-out 1s infinite;
+        }
+        .hero-visual::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 40%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+            animation: scan 5.5s ease-in-out infinite;
+        }
+        .model-plate {
+            position: absolute;
+            left: 1rem;
+            right: 1rem;
+            top: 1rem;
+            display: flex;
+            justify-content: space-between;
+            color: rgba(255,255,255,0.75);
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .risk-rings {
+            position: absolute;
+            inset: 20% 12% 16% 12%;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.035);
+        }
+        .risk-node {
+            position: absolute;
+            width: 0.78rem;
+            height: 0.78rem;
+            border-radius: 999px;
+            background: var(--blue);
+            animation: pulseDot 2.7s ease-in-out infinite;
+        }
+        .risk-node.high {
+            background: var(--red);
+        }
+        .risk-node.good {
+            background: var(--green);
+        }
+        .risk-node.one { left: 14%; top: 28%; }
+        .risk-node.two { left: 44%; top: 18%; animation-delay: 0.4s; }
+        .risk-node.three { right: 18%; top: 38%; animation-delay: 0.8s; }
+        .risk-node.four { left: 30%; bottom: 22%; animation-delay: 1.1s; }
+        .risk-node.five { right: 28%; bottom: 18%; animation-delay: 1.5s; }
+        .risk-line {
+            position: absolute;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(37,99,235,0), rgba(37,99,235,0.85), rgba(22,163,74,0));
+            transform-origin: left;
+            animation: slideLine 1.5s ease both;
+        }
+        .risk-line.a { left: 17%; top: 32%; width: 35%; transform: rotate(-13deg); }
+        .risk-line.b { left: 47%; top: 25%; width: 32%; transform: rotate(20deg); animation-delay: 0.15s; }
+        .risk-line.c { left: 33%; bottom: 30%; width: 42%; transform: rotate(-7deg); animation-delay: 0.3s; }
+        .hero-panel {
+            position: absolute;
+            left: 1rem;
+            right: 1rem;
+            bottom: 1rem;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.65rem;
+        }
+        .hero-panel-item {
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px;
+            padding: 0.72rem;
+            background: rgba(255,255,255,0.06);
+            color: #ffffff;
+            backdrop-filter: blur(8px);
+        }
+        .hero-panel-value {
+            font-size: 1.2rem;
+            font-weight: 900;
+            margin-bottom: 0.15rem;
+        }
+        .hero-panel-label {
+            color: rgba(255,255,255,0.68);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
         .dashboard-title {
             color: var(--ink);
             font-size: 2rem;
             font-weight: 800;
             line-height: 1.15;
             margin: 0 0 0.15rem 0;
+            animation: fadeUp 0.62s ease both;
         }
         .dashboard-subtitle {
             color: var(--muted);
             font-size: 0.98rem;
             margin: 0 0 1.2rem 0;
+            animation: fadeUp 0.62s ease 0.08s both;
         }
         .metric-card {
             background: var(--panel);
@@ -103,6 +373,13 @@ def configure_page() -> None:
             padding: 1.05rem 1.1rem;
             box-shadow: 0 10px 24px rgba(16, 24, 40, 0.06);
             min-height: 120px;
+            animation: fadeUp 0.58s ease both;
+            transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(37, 99, 235, 0.32);
+            box-shadow: 0 18px 42px rgba(16, 24, 40, 0.1);
         }
         .metric-label {
             color: var(--muted);
@@ -161,6 +438,12 @@ def configure_page() -> None:
             padding: 0.95rem 1rem;
             box-shadow: 0 10px 24px rgba(16, 24, 40, 0.04);
             min-height: 132px;
+            animation: fadeUp 0.58s ease both;
+            transition: transform 180ms ease, box-shadow 180ms ease;
+        }
+        .recommendation-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 18px 42px rgba(16, 24, 40, 0.1);
         }
         .recommendation-title {
             color: var(--ink);
@@ -184,6 +467,38 @@ def configure_page() -> None:
             border-radius: 8px;
             padding: 0.85rem 1rem;
             box-shadow: 0 10px 24px rgba(16, 24, 40, 0.04);
+            animation: fadeUp 0.58s ease both;
+            transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+        }
+        div[data-testid="stMetric"]:hover {
+            transform: translateY(-3px);
+            border-color: rgba(37, 99, 235, 0.26);
+            box-shadow: 0 16px 34px rgba(16, 24, 40, 0.08);
+        }
+        div[data-testid="stMetricLabel"] p {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+            line-height: 1.25;
+        }
+        div[data-testid="stPlotlyChart"] {
+            animation: fadeUp 0.66s ease both;
+            transition: transform 180ms ease, filter 180ms ease;
+        }
+        div[data-testid="stPlotlyChart"]:hover {
+            transform: translateY(-2px);
+            filter: drop-shadow(0 18px 28px rgba(16, 24, 40, 0.08));
+        }
+        div[data-testid="stImage"] img {
+            border-radius: 8px;
+            border: 1px solid var(--line);
+            box-shadow: 0 18px 42px rgba(16, 24, 40, 0.08);
+            animation: fadeUp 0.7s ease both;
+            transition: transform 220ms ease, box-shadow 220ms ease;
+        }
+        div[data-testid="stImage"] img:hover {
+            transform: translateY(-4px) scale(1.006);
+            box-shadow: 0 24px 58px rgba(16, 24, 40, 0.12);
         }
         div[data-testid="stButton"] > button {
             border-radius: 7px;
@@ -197,6 +512,19 @@ def configure_page() -> None:
             border-color: #1e40af;
             background: #1e40af;
             color: white;
+            transform: translateY(-1px);
+            transition: all 160ms ease;
+        }
+        @media (max-width: 980px) {
+            .hero-shell {
+                grid-template-columns: 1fr;
+            }
+            .hero-visual {
+                min-height: 320px;
+            }
+            .hero-stats {
+                grid-template-columns: 1fr;
+            }
         }
         </style>
         """,
@@ -219,6 +547,92 @@ def render_kpi_card(label: str, value: str, help_text: str) -> None:
             <div class="metric-value">{value}</div>
             <div class="metric-help">{help_text}</div>
         </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def format_compact_currency(value: float) -> str:
+    """Format large currency values compactly for narrow UI cards."""
+    absolute = abs(value)
+    if absolute >= 1_000_000_000:
+        return f"${value / 1_000_000_000:.1f}B"
+    if absolute >= 1_000_000:
+        return f"${value / 1_000_000:.1f}M"
+    if absolute >= 1_000:
+        return f"${value / 1_000:.1f}K"
+    return f"${value:,.0f}"
+
+
+def render_overview_hero(data: pd.DataFrame, scored: pd.DataFrame, model_bundle: dict[str, Any] | None) -> None:
+    """Render an animated industrial-style overview hero."""
+    total_customers = len(data)
+    churn_rate = data["ChurnFlag"].mean()
+    at_risk_count = int((scored["ChurnProbability"] >= RISK_THRESHOLD).sum()) if scored["ChurnProbability"].notna().any() else 0
+    expected_loss = compute_revenue_at_risk(scored)["expected_annual_loss"]
+    model_name = model_bundle.get("model_name", "Model") if model_bundle else "Model"
+    roc_auc = model_bundle.get("metrics", {}).get("roc_auc", 0) if model_bundle else 0
+
+    st.markdown(
+        f"""
+        <section class="hero-shell">
+            <div class="hero-copy">
+                <div class="eyebrow-row">
+                    <span class="eyebrow-chip">Retention System</span>
+                    <span class="eyebrow-chip">Live Risk Control</span>
+                    <span>EST. 2026</span>
+                </div>
+                <h1 class="hero-title">Customer Churn Intelligence</h1>
+                <p class="hero-subtitle">
+                    A modular churn command center for prediction, explainability,
+                    revenue exposure, and targeted retention decisions.
+                </p>
+                <div class="hero-stats">
+                    <div class="hero-stat">
+                        <div class="hero-stat-value">{total_customers:,}</div>
+                        <div class="hero-stat-label">Customers</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="hero-stat-value">{churn_rate:.1%}</div>
+                        <div class="hero-stat-label">Observed churn</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="hero-stat-value">{format_compact_currency(expected_loss)}</div>
+                        <div class="hero-stat-label">Expected annual loss</div>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-visual" aria-label="Animated churn risk model visual">
+                <div class="model-plate">
+                    <span>{model_name}</span>
+                    <span>ROC-AUC {roc_auc:.3f}</span>
+                </div>
+                <div class="risk-rings">
+                    <span class="risk-line a"></span>
+                    <span class="risk-line b"></span>
+                    <span class="risk-line c"></span>
+                    <span class="risk-node one high"></span>
+                    <span class="risk-node two"></span>
+                    <span class="risk-node three high"></span>
+                    <span class="risk-node four good"></span>
+                    <span class="risk-node five"></span>
+                </div>
+                <div class="hero-panel">
+                    <div class="hero-panel-item">
+                        <div class="hero-panel-value">{at_risk_count:,}</div>
+                        <div class="hero-panel-label">At risk</div>
+                    </div>
+                    <div class="hero-panel-item">
+                        <div class="hero-panel-value">{HIGH_RISK_THRESHOLD:.0%}</div>
+                        <div class="hero-panel-label">Threshold</div>
+                    </div>
+                    <div class="hero-panel-item">
+                        <div class="hero-panel-value">SHAP</div>
+                        <div class="hero-panel-label">Explainable</div>
+                    </div>
+                </div>
+            </div>
+        </section>
         """,
         unsafe_allow_html=True,
     )
@@ -608,10 +1022,7 @@ def sidebar_navigation() -> str:
 
 def render_executive_overview(data: pd.DataFrame, scored: pd.DataFrame, model_bundle: dict[str, Any] | None) -> None:
     """Render top-level operational KPIs and charts."""
-    render_header(
-        "Customer Churn Intelligence",
-        "Executive view of churn exposure, model risk scores, and customer retention signals.",
-    )
+    render_overview_hero(data, scored, model_bundle)
 
     total_customers = len(data)
     churned_customers = int(data["ChurnFlag"].sum())
@@ -631,10 +1042,30 @@ def render_executive_overview(data: pd.DataFrame, scored: pd.DataFrame, model_bu
         render_kpi_card("Avg Monthly Charge", f"${avg_monthly_charge:,.2f}", "Mean monthly customer revenue")
 
     revenue_cols = st.columns(4)
-    revenue_cols[0].metric("Monthly Revenue at Risk", f"${revenue_metrics['monthly_revenue_at_risk']:,.0f}")
-    revenue_cols[1].metric("Expected Monthly Loss", f"${revenue_metrics['expected_monthly_loss']:,.0f}")
-    revenue_cols[2].metric("Expected Annual Loss", f"${revenue_metrics['expected_annual_loss']:,.0f}")
-    revenue_cols[3].metric("Estimated Save Opportunity", f"${revenue_metrics['estimated_save_opportunity']:,.0f}")
+    with revenue_cols[0]:
+        render_kpi_card(
+            "Monthly Revenue at Risk",
+            f"${revenue_metrics['monthly_revenue_at_risk']:,.0f}",
+            "High-risk monthly recurring revenue",
+        )
+    with revenue_cols[1]:
+        render_kpi_card(
+            "Expected Monthly Loss",
+            f"${revenue_metrics['expected_monthly_loss']:,.0f}",
+            "Probability-weighted exposure",
+        )
+    with revenue_cols[2]:
+        render_kpi_card(
+            "Expected Annual Loss",
+            f"${revenue_metrics['expected_annual_loss']:,.0f}",
+            "Projected annualized exposure",
+        )
+    with revenue_cols[3]:
+        render_kpi_card(
+            "Estimated Save Opportunity",
+            f"${revenue_metrics['estimated_save_opportunity']:,.0f}",
+            "Modeled retention upside",
+        )
 
     st.write("")
 
