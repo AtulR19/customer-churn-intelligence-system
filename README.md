@@ -198,7 +198,7 @@ http://127.0.0.1:8501
 
 ## Screenshots
 
-Add screenshots to `docs/screenshots/` and update the image links below.
+Dashboard screenshots are stored in `docs/screenshots/`.
 
 ### Executive Overview
 
