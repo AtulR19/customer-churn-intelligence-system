@@ -34,6 +34,10 @@ PREDICTION_EXPLANATION_PATH = SHAP_DIR / "prediction_explanation.json"
 PREDICTION_EXPLANATION_MD_PATH = SHAP_DIR / "prediction_explanation.md"
 
 RISK_THRESHOLD = 0.5
+HIGH_RISK_THRESHOLD = 0.5
+MODERATE_RISK_THRESHOLD = 0.3
+RETENTION_COST_RATE = 0.15
+RETENTION_SUCCESS_RATE = 0.25
 
 
 def configure_page() -> None:
@@ -149,6 +153,31 @@ def configure_page() -> None:
             color: var(--muted);
             font-size: 0.84rem;
         }
+        .recommendation-card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-left: 4px solid var(--blue);
+            border-radius: 8px;
+            padding: 0.95rem 1rem;
+            box-shadow: 0 10px 24px rgba(16, 24, 40, 0.04);
+            min-height: 132px;
+        }
+        .recommendation-title {
+            color: var(--ink);
+            font-weight: 800;
+            margin-bottom: 0.35rem;
+        }
+        .recommendation-body {
+            color: var(--muted);
+            font-size: 0.9rem;
+            line-height: 1.45;
+        }
+        .download-card {
+            background: #eef6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 1rem;
+        }
         div[data-testid="stMetric"] {
             background: var(--panel);
             border: 1px solid var(--line);
@@ -248,6 +277,93 @@ def load_prediction_explanation() -> dict[str, Any]:
     return json.loads(PREDICTION_EXPLANATION_PATH.read_text(encoding="utf-8"))
 
 
+def get_required_feature_columns(model_bundle: dict[str, Any]) -> list[str]:
+    """Return raw feature columns required by the trained preprocessing pipeline."""
+    return list(model_bundle.get("numeric_features", [])) + list(model_bundle.get("categorical_features", []))
+
+
+def normalize_prediction_input(data: pd.DataFrame) -> pd.DataFrame:
+    """Normalize uploaded or form data before model scoring."""
+    normalized = data.copy()
+    string_columns = normalized.select_dtypes(include=["object", "string"]).columns
+    for column in string_columns:
+        normalized[column] = normalized[column].astype("string").str.strip()
+
+    normalized = normalized.replace("", np.nan)
+
+    if "TotalCharges" in normalized.columns:
+        normalized["TotalCharges"] = pd.to_numeric(normalized["TotalCharges"], errors="coerce")
+    if "MonthlyCharges" in normalized.columns:
+        normalized["MonthlyCharges"] = pd.to_numeric(normalized["MonthlyCharges"], errors="coerce")
+    if "tenure" in normalized.columns:
+        normalized["tenure"] = pd.to_numeric(normalized["tenure"], errors="coerce")
+    if "SeniorCitizen" in normalized.columns:
+        normalized["SeniorCitizen"] = normalized["SeniorCitizen"].replace(
+            {"Yes": 1, "No": 0, "yes": 1, "no": 0, "True": 1, "False": 0, "true": 1, "false": 0}
+        )
+        converted_senior = pd.to_numeric(normalized["SeniorCitizen"], errors="coerce")
+        normalized["SeniorCitizen"] = converted_senior.where(converted_senior.notna(), normalized["SeniorCitizen"])
+
+    return normalized
+
+
+def validate_prediction_columns(data: pd.DataFrame, model_bundle: dict[str, Any]) -> list[str]:
+    """Return required feature columns missing from a prediction input dataframe."""
+    required_columns = get_required_feature_columns(model_bundle)
+    return [column for column in required_columns if column not in data.columns]
+
+
+def score_customers(data: pd.DataFrame, model_bundle: dict[str, Any]) -> pd.DataFrame:
+    """Score customer rows and return a prediction report dataframe."""
+    normalized = normalize_prediction_input(data)
+    missing_columns = validate_prediction_columns(normalized, model_bundle)
+    if missing_columns:
+        missing = ", ".join(missing_columns)
+        raise ValueError(f"Missing required columns: {missing}")
+
+    transformed = transform_to_dataframe(
+        model_bundle["preprocessing_pipeline"],
+        normalized,
+        index=normalized.index,
+    )
+    probabilities = model_bundle["model"].predict_proba(transformed)[:, 1]
+    predictions = np.where(probabilities >= RISK_THRESHOLD, "Yes", "No")
+
+    report = normalized.copy()
+    report["churn_probability"] = probabilities
+    report["churn_probability_pct"] = (probabilities * 100).round(2)
+    report["predicted_churn"] = predictions
+    report["risk_band"] = pd.cut(
+        report["churn_probability"],
+        bins=[-0.01, MODERATE_RISK_THRESHOLD, HIGH_RISK_THRESHOLD, 1.0],
+        labels=["Low", "Moderate", "High"],
+    ).astype("string")
+    report["monthly_revenue_at_risk"] = np.where(
+        report["predicted_churn"].eq("Yes"),
+        report["MonthlyCharges"].fillna(0),
+        0,
+    )
+    report["expected_monthly_loss"] = report["MonthlyCharges"].fillna(0) * report["churn_probability"]
+    report["expected_annual_loss"] = report["expected_monthly_loss"] * 12
+    report["recommended_action"] = report.apply(recommend_action_for_row, axis=1)
+
+    preferred_columns = [
+        "customerID",
+        "predicted_churn",
+        "risk_band",
+        "churn_probability",
+        "churn_probability_pct",
+        "MonthlyCharges",
+        "monthly_revenue_at_risk",
+        "expected_monthly_loss",
+        "expected_annual_loss",
+        "recommended_action",
+    ]
+    remaining_columns = [column for column in report.columns if column not in preferred_columns]
+    ordered_columns = [column for column in preferred_columns if column in report.columns] + remaining_columns
+    return report[ordered_columns]
+
+
 def build_scored_dataset(data: pd.DataFrame, model_bundle: dict[str, Any] | None) -> pd.DataFrame:
     """Score every customer using the saved model bundle."""
     scored = data.copy()
@@ -258,8 +374,8 @@ def build_scored_dataset(data: pd.DataFrame, model_bundle: dict[str, Any] | None
 
     cleaned = clean_telco_dataframe(data.drop(columns=["ChurnFlag", "SeniorCitizenLabel", "TenureGroup", "MonthlyChargeGroup"], errors="ignore"))
     raw_features, _ = split_features_target(cleaned)
-    transformed = transform_to_dataframe(model_bundle["preprocessing_pipeline"], raw_features, index=cleaned.index)
-    probabilities = model_bundle["model"].predict_proba(transformed)[:, 1]
+    scored_report = score_customers(raw_features, model_bundle)
+    probabilities = scored_report["churn_probability"].to_numpy()
 
     scored.loc[cleaned.index, "ChurnProbability"] = probabilities
     scored["RiskBand"] = pd.cut(
@@ -268,6 +384,196 @@ def build_scored_dataset(data: pd.DataFrame, model_bundle: dict[str, Any] | None
         labels=["Low", "Moderate", "High"],
     ).astype("string")
     return scored
+
+
+def compute_revenue_at_risk(scored: pd.DataFrame) -> dict[str, float]:
+    """Calculate revenue exposure metrics from scored customers."""
+    valid = scored[scored["ChurnProbability"].notna()].copy()
+    if valid.empty:
+        return {
+            "high_risk_customers": 0,
+            "moderate_risk_customers": 0,
+            "monthly_revenue_at_risk": 0.0,
+            "annual_revenue_at_risk": 0.0,
+            "expected_monthly_loss": 0.0,
+            "expected_annual_loss": 0.0,
+            "estimated_save_opportunity": 0.0,
+        }
+
+    high_risk = valid[valid["ChurnProbability"] >= HIGH_RISK_THRESHOLD]
+    moderate_risk = valid[
+        (valid["ChurnProbability"] >= MODERATE_RISK_THRESHOLD)
+        & (valid["ChurnProbability"] < HIGH_RISK_THRESHOLD)
+    ]
+    monthly_revenue_at_risk = float(high_risk["MonthlyCharges"].fillna(0).sum())
+    expected_monthly_loss = float((valid["MonthlyCharges"].fillna(0) * valid["ChurnProbability"]).sum())
+
+    return {
+        "high_risk_customers": int(len(high_risk)),
+        "moderate_risk_customers": int(len(moderate_risk)),
+        "monthly_revenue_at_risk": monthly_revenue_at_risk,
+        "annual_revenue_at_risk": monthly_revenue_at_risk * 12,
+        "expected_monthly_loss": expected_monthly_loss,
+        "expected_annual_loss": expected_monthly_loss * 12,
+        "estimated_save_opportunity": expected_monthly_loss * 12 * RETENTION_SUCCESS_RATE,
+    }
+
+
+def build_revenue_segment_table(scored: pd.DataFrame, segment_column: str) -> pd.DataFrame:
+    """Aggregate revenue exposure by business segment."""
+    valid = scored[scored["ChurnProbability"].notna()].copy()
+    if valid.empty or segment_column not in valid.columns:
+        return pd.DataFrame()
+
+    valid["ExpectedMonthlyLoss"] = valid["MonthlyCharges"].fillna(0) * valid["ChurnProbability"]
+    valid["HighRiskRevenue"] = np.where(
+        valid["ChurnProbability"] >= HIGH_RISK_THRESHOLD,
+        valid["MonthlyCharges"].fillna(0),
+        0,
+    )
+    grouped = (
+        valid.groupby(segment_column, observed=True)
+        .agg(
+            Customers=("customerID", "count"),
+            AvgRisk=("ChurnProbability", "mean"),
+            HighRiskCustomers=("ChurnProbability", lambda values: int((values >= HIGH_RISK_THRESHOLD).sum())),
+            MonthlyRevenueAtRisk=("HighRiskRevenue", "sum"),
+            ExpectedMonthlyLoss=("ExpectedMonthlyLoss", "sum"),
+        )
+        .reset_index()
+    )
+    grouped["ExpectedAnnualLoss"] = grouped["ExpectedMonthlyLoss"] * 12
+    grouped["MonthlyRevenueAtRisk"] = grouped["MonthlyRevenueAtRisk"].round(2)
+    grouped["ExpectedMonthlyLoss"] = grouped["ExpectedMonthlyLoss"].round(2)
+    grouped["ExpectedAnnualLoss"] = grouped["ExpectedAnnualLoss"].round(2)
+    grouped["AvgRiskPct"] = grouped["AvgRisk"] * 100
+    return grouped.sort_values("ExpectedMonthlyLoss", ascending=False)
+
+
+def recommend_action_for_row(row: pd.Series) -> str:
+    """Assign a retention action from customer attributes and predicted risk."""
+    probability = safe_float(row.get("churn_probability", 0), default=0.0)
+    contract = str(row.get("Contract", ""))
+    tech_support = str(row.get("TechSupport", ""))
+    online_security = str(row.get("OnlineSecurity", ""))
+    payment_method = str(row.get("PaymentMethod", ""))
+    tenure = safe_float(row.get("tenure", 0), default=0.0)
+
+    if probability >= HIGH_RISK_THRESHOLD and contract == "Month-to-month":
+        return "Offer annual contract incentive with onboarding follow-up"
+    if probability >= HIGH_RISK_THRESHOLD and tech_support == "No":
+        return "Prioritize support outreach and service quality check"
+    if probability >= HIGH_RISK_THRESHOLD and online_security == "No":
+        return "Bundle security or protection add-on with retention offer"
+    if probability >= MODERATE_RISK_THRESHOLD and payment_method == "Electronic check":
+        return "Encourage automatic payment migration"
+    if probability >= MODERATE_RISK_THRESHOLD and tenure <= 12:
+        return "Enroll in first-year success and education campaign"
+    if probability >= MODERATE_RISK_THRESHOLD:
+        return "Send targeted value reinforcement campaign"
+    return "Monitor; maintain standard engagement cadence"
+
+
+def build_business_recommendations(scored: pd.DataFrame) -> list[dict[str, str]]:
+    """Build recommendation cards from current scored portfolio."""
+    valid = scored[scored["ChurnProbability"].notna()].copy()
+    if valid.empty:
+        return []
+
+    high_risk = valid[valid["ChurnProbability"] >= HIGH_RISK_THRESHOLD]
+    month_to_month_risk = high_risk[high_risk["Contract"].eq("Month-to-month")]
+    no_support_risk = high_risk[high_risk["TechSupport"].eq("No")]
+    electronic_check_risk = high_risk[high_risk["PaymentMethod"].eq("Electronic check")]
+    early_life_risk = high_risk[high_risk["tenure"] <= 12]
+
+    recommendations = [
+        {
+            "title": "Convert Month-to-Month Exposure",
+            "body": (
+                f"{len(month_to_month_risk):,} high-risk customers are on month-to-month contracts. "
+                "Prioritize contract upgrade offers, loyalty credits, or term-based bundles."
+            ),
+        },
+        {
+            "title": "Close Support Gaps",
+            "body": (
+                f"{len(no_support_risk):,} high-risk customers have no tech support. "
+                "Route them to proactive support outreach before renewal or billing cycles."
+            ),
+        },
+        {
+            "title": "Reduce Payment Friction",
+            "body": (
+                f"{len(electronic_check_risk):,} high-risk customers use electronic checks. "
+                "Promote automatic payment methods with a low-friction migration campaign."
+            ),
+        },
+        {
+            "title": "Protect New Customers",
+            "body": (
+                f"{len(early_life_risk):,} high-risk customers are in their first year. "
+                "Trigger onboarding education, value check-ins, and service-fit reviews."
+            ),
+        },
+    ]
+    return recommendations
+
+
+def convert_report_to_csv(report: pd.DataFrame) -> bytes:
+    """Convert a prediction report dataframe into downloadable CSV bytes."""
+    return report.to_csv(index=False).encode("utf-8")
+
+
+def build_portfolio_prediction_report(scored: pd.DataFrame) -> pd.DataFrame:
+    """Create a downloadable prediction report for the active portfolio."""
+    report = scored[scored["ChurnProbability"].notna()].copy()
+    if report.empty:
+        return pd.DataFrame()
+
+    report["churn_probability"] = report["ChurnProbability"]
+    report["churn_probability_pct"] = (report["churn_probability"] * 100).round(2)
+    report["predicted_churn"] = np.where(report["churn_probability"] >= RISK_THRESHOLD, "Yes", "No")
+    report["risk_band"] = report["RiskBand"]
+    report["monthly_revenue_at_risk"] = np.where(
+        report["predicted_churn"].eq("Yes"),
+        report["MonthlyCharges"].fillna(0),
+        0,
+    )
+    report["expected_monthly_loss"] = report["MonthlyCharges"].fillna(0) * report["churn_probability"]
+    report["expected_annual_loss"] = report["expected_monthly_loss"] * 12
+    report["recommended_action"] = report.apply(recommend_action_for_row, axis=1)
+
+    preferred_columns = [
+        "customerID",
+        "predicted_churn",
+        "risk_band",
+        "churn_probability_pct",
+        "MonthlyCharges",
+        "monthly_revenue_at_risk",
+        "expected_monthly_loss",
+        "expected_annual_loss",
+        "recommended_action",
+        "Contract",
+        "tenure",
+        "InternetService",
+        "PaymentMethod",
+        "TechSupport",
+        "OnlineSecurity",
+        "Churn",
+    ]
+    remaining_columns = [column for column in report.columns if column not in preferred_columns]
+    ordered_columns = [column for column in preferred_columns if column in report.columns] + remaining_columns
+    return report[ordered_columns].sort_values("churn_probability_pct", ascending=False)
+
+
+def safe_float(value: Any, *, default: float = 0.0) -> float:
+    """Convert values to float without failing on missing pandas scalars."""
+    if pd.isna(value):
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def churn_rate_by(data: pd.DataFrame, column: str) -> pd.DataFrame:
@@ -292,6 +598,7 @@ def sidebar_navigation() -> str:
             "Executive Overview",
             "Churn Analytics",
             "Predict Churn",
+            "Business Impact",
             "SHAP Explainability",
             "Model Comparison",
         ],
@@ -311,6 +618,7 @@ def render_executive_overview(data: pd.DataFrame, scored: pd.DataFrame, model_bu
     churn_rate = data["ChurnFlag"].mean()
     avg_monthly_charge = data["MonthlyCharges"].mean()
     at_risk_count = int((scored["ChurnProbability"] >= RISK_THRESHOLD).sum()) if scored["ChurnProbability"].notna().any() else 0
+    revenue_metrics = compute_revenue_at_risk(scored)
 
     kpi_cols = st.columns(4)
     with kpi_cols[0]:
@@ -321,6 +629,12 @@ def render_executive_overview(data: pd.DataFrame, scored: pd.DataFrame, model_bu
         render_kpi_card("Predicted At Risk", f"{at_risk_count:,}", f"Risk threshold at {RISK_THRESHOLD:.0%}")
     with kpi_cols[3]:
         render_kpi_card("Avg Monthly Charge", f"${avg_monthly_charge:,.2f}", "Mean monthly customer revenue")
+
+    revenue_cols = st.columns(4)
+    revenue_cols[0].metric("Monthly Revenue at Risk", f"${revenue_metrics['monthly_revenue_at_risk']:,.0f}")
+    revenue_cols[1].metric("Expected Monthly Loss", f"${revenue_metrics['expected_monthly_loss']:,.0f}")
+    revenue_cols[2].metric("Expected Annual Loss", f"${revenue_metrics['expected_annual_loss']:,.0f}")
+    revenue_cols[3].metric("Estimated Save Opportunity", f"${revenue_metrics['estimated_save_opportunity']:,.0f}")
 
     st.write("")
 
@@ -354,6 +668,20 @@ def render_executive_overview(data: pd.DataFrame, scored: pd.DataFrame, model_bu
         fig.update_traces(textposition="inside", textinfo="percent+label")
         fig.update_layout(height=390)
         st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Business Recommendations")
+    recommendation_cols = st.columns(4)
+    for column, recommendation in zip(recommendation_cols, build_business_recommendations(scored)):
+        with column:
+            st.markdown(
+                f"""
+                <div class="recommendation-card">
+                    <div class="recommendation-title">{recommendation['title']}</div>
+                    <div class="recommendation-body">{recommendation['body']}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
     lower_left, lower_right = st.columns(2)
     with lower_left:
@@ -480,140 +808,328 @@ def render_churn_analytics(data: pd.DataFrame, scored: pd.DataFrame) -> None:
     st.plotly_chart(fig, use_container_width=True)
 
 
+def render_business_impact(scored: pd.DataFrame) -> None:
+    """Render revenue-at-risk and retention recommendation analysis."""
+    render_header(
+        "Business Impact",
+        "Revenue exposure, customer prioritization, and recommended retention actions.",
+    )
+
+    metrics = compute_revenue_at_risk(scored)
+    portfolio_report = build_portfolio_prediction_report(scored)
+
+    metric_cols = st.columns(5)
+    metric_cols[0].metric("High-Risk Customers", f"{metrics['high_risk_customers']:,}")
+    metric_cols[1].metric("Moderate-Risk Customers", f"{metrics['moderate_risk_customers']:,}")
+    metric_cols[2].metric("Monthly Revenue at Risk", f"${metrics['monthly_revenue_at_risk']:,.0f}")
+    metric_cols[3].metric("Expected Annual Loss", f"${metrics['expected_annual_loss']:,.0f}")
+    metric_cols[4].metric("Save Opportunity", f"${metrics['estimated_save_opportunity']:,.0f}")
+
+    st.caption(
+        "Expected loss weights monthly charges by churn probability. Save opportunity assumes "
+        f"{RETENTION_SUCCESS_RATE:.0%} of expected annual loss can be prevented through targeted retention."
+    )
+
+    segment_col, download_col = st.columns((0.55, 0.45))
+    with segment_col:
+        segment = st.selectbox(
+            "Revenue risk segment",
+            ["Contract", "PaymentMethod", "InternetService", "TechSupport", "TenureGroup", "RiskBand"],
+        )
+    with download_col:
+        if not portfolio_report.empty:
+            st.download_button(
+                "Download Portfolio Prediction Report",
+                data=convert_report_to_csv(portfolio_report),
+                file_name="portfolio_churn_prediction_report.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+
+    segment_table = build_revenue_segment_table(scored, segment)
+    left, right = st.columns((1.1, 0.9))
+    with left:
+        if not segment_table.empty:
+            fig = px.bar(
+                segment_table,
+                x=segment,
+                y="ExpectedAnnualLoss",
+                color="AvgRiskPct",
+                text="ExpectedAnnualLoss",
+                title=f"Expected Annual Loss by {segment}",
+                color_continuous_scale=["#dbeafe", "#dc2626"],
+            )
+            fig.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
+            fig.update_layout(yaxis_title="Expected annual loss", xaxis_title=None, height=430, coloraxis_colorbar_title="Avg risk %")
+            st.plotly_chart(fig, use_container_width=True)
+    with right:
+        st.subheader("Action Priorities")
+        for recommendation in build_business_recommendations(scored):
+            st.markdown(
+                f"""
+                <div class="recommendation-card">
+                    <div class="recommendation-title">{recommendation['title']}</div>
+                    <div class="recommendation-body">{recommendation['body']}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    st.subheader("Highest Revenue-at-Risk Customers")
+    if portfolio_report.empty:
+        st.info("No model scores are available. Run training first, then reload the dashboard.")
+        return
+
+    table_columns = [
+        "customerID",
+        "predicted_churn",
+        "risk_band",
+        "churn_probability_pct",
+        "MonthlyCharges",
+        "expected_annual_loss",
+        "recommended_action",
+        "Contract",
+        "tenure",
+        "PaymentMethod",
+    ]
+    visible_columns = [column for column in table_columns if column in portfolio_report.columns]
+    st.dataframe(
+        portfolio_report[visible_columns].head(50),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    if not segment_table.empty:
+        st.subheader("Segment Revenue Exposure")
+        st.dataframe(
+            segment_table,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+
 def render_prediction_form(model_bundle: dict[str, Any] | None) -> None:
-    """Render single-customer prediction form."""
+    """Render single-customer and batch CSV prediction workflows."""
     render_header(
         "Predict Churn",
-        "Score an individual customer with the trained churn model.",
+        "Score individual customers or upload a CSV for batch churn prediction.",
     )
 
     if model_bundle is None:
         st.error("Best model artifact not found. Run `python main.py train` first.")
         return
 
-    left, right = st.columns((1.2, 0.8))
-    with left:
-        with st.form("prediction_form"):
-            st.subheader("Customer Profile")
-            row_1 = st.columns(3)
-            gender = row_1[0].selectbox("Gender", ["Female", "Male"])
-            senior_citizen = row_1[1].selectbox("Senior citizen", [0, 1], format_func=lambda value: "Yes" if value else "No")
-            partner = row_1[2].selectbox("Partner", ["No", "Yes"])
+    single_tab, batch_tab = st.tabs(["Single Prediction", "Batch CSV Prediction"])
 
-            row_2 = st.columns(3)
-            dependents = row_2[0].selectbox("Dependents", ["No", "Yes"])
-            tenure = row_2[1].number_input("Tenure", min_value=0, max_value=72, value=12, step=1)
-            contract = row_2[2].selectbox("Contract", ["Month-to-month", "One year", "Two year"])
+    with single_tab:
+        left, right = st.columns((1.2, 0.8))
+        with left:
+            with st.form("prediction_form"):
+                st.subheader("Customer Profile")
+                row_1 = st.columns(3)
+                gender = row_1[0].selectbox("Gender", ["Female", "Male"])
+                senior_citizen = row_1[1].selectbox("Senior citizen", [0, 1], format_func=lambda value: "Yes" if value else "No")
+                partner = row_1[2].selectbox("Partner", ["No", "Yes"])
 
-            row_3 = st.columns(3)
-            phone_service = row_3[0].selectbox("Phone service", ["No", "Yes"], index=1)
-            multiple_lines = row_3[1].selectbox("Multiple lines", ["No", "No phone service", "Yes"])
-            internet_service = row_3[2].selectbox("Internet service", ["DSL", "Fiber optic", "No"], index=1)
+                row_2 = st.columns(3)
+                dependents = row_2[0].selectbox("Dependents", ["No", "Yes"])
+                tenure = row_2[1].number_input("Tenure", min_value=0, max_value=72, value=12, step=1)
+                contract = row_2[2].selectbox("Contract", ["Month-to-month", "One year", "Two year"])
 
-            row_4 = st.columns(3)
-            online_security = row_4[0].selectbox("Online security", ["No", "No internet service", "Yes"])
-            online_backup = row_4[1].selectbox("Online backup", ["No", "No internet service", "Yes"])
-            device_protection = row_4[2].selectbox("Device protection", ["No", "No internet service", "Yes"])
+                row_3 = st.columns(3)
+                phone_service = row_3[0].selectbox("Phone service", ["No", "Yes"], index=1)
+                multiple_lines = row_3[1].selectbox("Multiple lines", ["No", "No phone service", "Yes"])
+                internet_service = row_3[2].selectbox("Internet service", ["DSL", "Fiber optic", "No"], index=1)
 
-            row_5 = st.columns(3)
-            tech_support = row_5[0].selectbox("Tech support", ["No", "No internet service", "Yes"])
-            streaming_tv = row_5[1].selectbox("Streaming TV", ["No", "No internet service", "Yes"])
-            streaming_movies = row_5[2].selectbox("Streaming movies", ["No", "No internet service", "Yes"])
+                row_4 = st.columns(3)
+                online_security = row_4[0].selectbox("Online security", ["No", "No internet service", "Yes"])
+                online_backup = row_4[1].selectbox("Online backup", ["No", "No internet service", "Yes"])
+                device_protection = row_4[2].selectbox("Device protection", ["No", "No internet service", "Yes"])
 
-            row_6 = st.columns(3)
-            paperless_billing = row_6[0].selectbox("Paperless billing", ["No", "Yes"], index=1)
-            payment_method = row_6[1].selectbox(
-                "Payment method",
-                ["Bank transfer (automatic)", "Credit card (automatic)", "Electronic check", "Mailed check"],
-                index=2,
-            )
-            monthly_charges = row_6[2].number_input("Monthly charges", min_value=0.0, max_value=200.0, value=85.0, step=1.0)
+                row_5 = st.columns(3)
+                tech_support = row_5[0].selectbox("Tech support", ["No", "No internet service", "Yes"])
+                streaming_tv = row_5[1].selectbox("Streaming TV", ["No", "No internet service", "Yes"])
+                streaming_movies = row_5[2].selectbox("Streaming movies", ["No", "No internet service", "Yes"])
 
-            total_charges = st.number_input(
-                "Total charges",
-                min_value=0.0,
-                max_value=10000.0,
-                value=float(max(tenure, 1) * monthly_charges),
-                step=10.0,
-            )
-            submitted = st.form_submit_button("Predict Churn Risk", use_container_width=True)
-
-    with right:
-        st.subheader("Prediction Result")
-        if submitted:
-            input_data = pd.DataFrame(
-                [
-                    {
-                        "gender": gender,
-                        "SeniorCitizen": senior_citizen,
-                        "Partner": partner,
-                        "Dependents": dependents,
-                        "tenure": tenure,
-                        "PhoneService": phone_service,
-                        "MultipleLines": multiple_lines,
-                        "InternetService": internet_service,
-                        "OnlineSecurity": online_security,
-                        "OnlineBackup": online_backup,
-                        "DeviceProtection": device_protection,
-                        "TechSupport": tech_support,
-                        "StreamingTV": streaming_tv,
-                        "StreamingMovies": streaming_movies,
-                        "Contract": contract,
-                        "PaperlessBilling": paperless_billing,
-                        "PaymentMethod": payment_method,
-                        "MonthlyCharges": monthly_charges,
-                        "TotalCharges": total_charges,
-                    }
-                ]
-            )
-            transformed = transform_to_dataframe(model_bundle["preprocessing_pipeline"], input_data, index=input_data.index)
-            probability = float(model_bundle["model"].predict_proba(transformed)[0, 1])
-            prediction = "Yes" if probability >= RISK_THRESHOLD else "No"
-            risk_class = "risk-high" if prediction == "Yes" else "risk-low"
-            gauge_color = "#dc2626" if prediction == "Yes" else "#16a34a"
-
-            st.markdown(
-                f"""
-                <div class="risk-panel">
-                    <div class="metric-label">Churn Probability</div>
-                    <div class="risk-score">{probability:.1%}</div>
-                    <div class="{risk_class}">Predicted churn: {prediction}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            gauge = go.Figure(
-                go.Indicator(
-                    mode="gauge+number",
-                    value=probability * 100,
-                    number={"suffix": "%"},
-                    gauge={
-                        "axis": {"range": [0, 100]},
-                        "bar": {"color": gauge_color},
-                        "steps": [
-                            {"range": [0, 30], "color": "#dcfce7"},
-                            {"range": [30, 50], "color": "#fef3c7"},
-                            {"range": [50, 100], "color": "#fee2e2"},
-                        ],
-                        "threshold": {"line": {"color": "#111827", "width": 3}, "value": RISK_THRESHOLD * 100},
-                    },
+                row_6 = st.columns(3)
+                paperless_billing = row_6[0].selectbox("Paperless billing", ["No", "Yes"], index=1)
+                payment_method = row_6[1].selectbox(
+                    "Payment method",
+                    ["Bank transfer (automatic)", "Credit card (automatic)", "Electronic check", "Mailed check"],
+                    index=2,
                 )
-            )
-            gauge.update_layout(height=290, margin=dict(l=20, r=20, t=20, b=20))
-            st.plotly_chart(gauge, use_container_width=True)
+                monthly_charges = row_6[2].number_input("Monthly charges", min_value=0.0, max_value=200.0, value=85.0, step=1.0)
 
-            st.dataframe(input_data.T.rename(columns={0: "value"}), use_container_width=True)
-        else:
-            st.markdown(
-                """
-                <div class="risk-panel">
-                    <div class="metric-label">Churn Probability</div>
-                    <div class="risk-score">--</div>
-                    <div class="small-note">Submit a profile to score churn risk.</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
+                total_charges = st.number_input(
+                    "Total charges",
+                    min_value=0.0,
+                    max_value=10000.0,
+                    value=float(max(tenure, 1) * monthly_charges),
+                    step=10.0,
+                )
+                submitted = st.form_submit_button("Predict Churn Risk", use_container_width=True)
+
+        with right:
+            st.subheader("Prediction Result")
+            if submitted:
+                input_data = pd.DataFrame(
+                    [
+                        {
+                            "gender": gender,
+                            "SeniorCitizen": senior_citizen,
+                            "Partner": partner,
+                            "Dependents": dependents,
+                            "tenure": tenure,
+                            "PhoneService": phone_service,
+                            "MultipleLines": multiple_lines,
+                            "InternetService": internet_service,
+                            "OnlineSecurity": online_security,
+                            "OnlineBackup": online_backup,
+                            "DeviceProtection": device_protection,
+                            "TechSupport": tech_support,
+                            "StreamingTV": streaming_tv,
+                            "StreamingMovies": streaming_movies,
+                            "Contract": contract,
+                            "PaperlessBilling": paperless_billing,
+                            "PaymentMethod": payment_method,
+                            "MonthlyCharges": monthly_charges,
+                            "TotalCharges": total_charges,
+                        }
+                    ]
+                )
+                report = score_customers(input_data, model_bundle)
+                probability = float(report.loc[0, "churn_probability"])
+                prediction = str(report.loc[0, "predicted_churn"])
+                risk_class = "risk-high" if prediction == "Yes" else "risk-low"
+                gauge_color = "#dc2626" if prediction == "Yes" else "#16a34a"
+
+                st.markdown(
+                    f"""
+                    <div class="risk-panel">
+                        <div class="metric-label">Churn Probability</div>
+                        <div class="risk-score">{probability:.1%}</div>
+                        <div class="{risk_class}">Predicted churn: {prediction}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                gauge = go.Figure(
+                    go.Indicator(
+                        mode="gauge+number",
+                        value=probability * 100,
+                        number={"suffix": "%"},
+                        gauge={
+                            "axis": {"range": [0, 100]},
+                            "bar": {"color": gauge_color},
+                            "steps": [
+                                {"range": [0, 30], "color": "#dcfce7"},
+                                {"range": [30, 50], "color": "#fef3c7"},
+                                {"range": [50, 100], "color": "#fee2e2"},
+                            ],
+                            "threshold": {"line": {"color": "#111827", "width": 3}, "value": RISK_THRESHOLD * 100},
+                        },
+                    )
+                )
+                gauge.update_layout(height=290, margin=dict(l=20, r=20, t=20, b=20))
+                st.plotly_chart(gauge, use_container_width=True)
+
+                st.dataframe(input_data.T.rename(columns={0: "value"}), use_container_width=True)
+                st.download_button(
+                    "Download Single Prediction Report",
+                    data=convert_report_to_csv(report),
+                    file_name="single_churn_prediction_report.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                )
+            else:
+                st.markdown(
+                    """
+                    <div class="risk-panel">
+                        <div class="metric-label">Churn Probability</div>
+                        <div class="risk-score">--</div>
+                        <div class="small-note">Submit a profile to score churn risk.</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+    with batch_tab:
+        st.subheader("Batch CSV Scoring")
+        st.markdown(
+            """
+            <div class="download-card">
+                Upload a CSV with the IBM Telco customer fields. Optional columns such as
+                <strong>customerID</strong> and <strong>Churn</strong> are preserved in the downloadable report.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        template_data = load_raw_data()
+        template_columns = ["customerID", *get_required_feature_columns(model_bundle)]
+        template = template_data[[column for column in template_columns if column in template_data.columns]].head(25)
+        template_col, upload_col = st.columns((0.45, 0.55))
+        with template_col:
+            st.download_button(
+                "Download CSV Template",
+                data=convert_report_to_csv(template),
+                file_name="churn_batch_prediction_template.csv",
+                mime="text/csv",
+                use_container_width=True,
             )
+        with upload_col:
+            uploaded_file = st.file_uploader("Upload customer CSV", type=["csv"], accept_multiple_files=False)
+
+        if uploaded_file is not None:
+            try:
+                uploaded = pd.read_csv(uploaded_file)
+                missing_columns = validate_prediction_columns(uploaded, model_bundle)
+                if missing_columns:
+                    st.error("Uploaded CSV is missing required model columns.")
+                    st.code(", ".join(missing_columns))
+                    return
+
+                report = score_customers(uploaded, model_bundle)
+                high_risk_count = int(report["predicted_churn"].eq("Yes").sum())
+                expected_monthly_loss = float(report["expected_monthly_loss"].sum())
+                expected_annual_loss = float(report["expected_annual_loss"].sum())
+                monthly_revenue_at_risk = float(report["monthly_revenue_at_risk"].sum())
+
+                batch_metrics = st.columns(4)
+                batch_metrics[0].metric("Rows Scored", f"{len(report):,}")
+                batch_metrics[1].metric("High Risk", f"{high_risk_count:,}")
+                batch_metrics[2].metric("Monthly Revenue at Risk", f"${monthly_revenue_at_risk:,.0f}")
+                batch_metrics[3].metric("Expected Annual Loss", f"${expected_annual_loss:,.0f}")
+
+                risk_mix = report["risk_band"].value_counts().rename_axis("risk_band").reset_index(name="customers")
+                fig = px.pie(
+                    risk_mix,
+                    names="risk_band",
+                    values="customers",
+                    hole=0.48,
+                    title="Uploaded Portfolio Risk Mix",
+                    color="risk_band",
+                    color_discrete_map={"Low": "#16a34a", "Moderate": "#d97706", "High": "#dc2626"},
+                )
+                fig.update_layout(height=360)
+                st.plotly_chart(fig, use_container_width=True)
+
+                st.download_button(
+                    "Download Batch Prediction Report",
+                    data=convert_report_to_csv(report),
+                    file_name="batch_churn_prediction_report.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                )
+
+                st.dataframe(
+                    report.sort_values("churn_probability", ascending=False).head(100),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+                st.caption(f"Expected monthly loss for uploaded file: ${expected_monthly_loss:,.2f}")
+            except Exception as exc:
+                st.error(f"Unable to score uploaded file: {exc}")
 
 
 def render_shap_page() -> None:
@@ -740,6 +1256,8 @@ def main() -> None:
         render_churn_analytics(data, scored)
     elif page == "Predict Churn":
         render_prediction_form(model_bundle)
+    elif page == "Business Impact":
+        render_business_impact(scored)
     elif page == "SHAP Explainability":
         render_shap_page()
     elif page == "Model Comparison":
