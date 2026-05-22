@@ -22,6 +22,11 @@ def run_api() -> int:
     return subprocess.call([sys.executable, "-m", "uvicorn", "src.api.app:app", "--reload"])
 
 
+def run_training() -> int:
+    """Run the churn model training pipeline."""
+    return subprocess.call([sys.executable, "-m", "src.training.train_model"])
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Customer Churn Intelligence System command runner."
@@ -30,6 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser("dashboard", help="Run the Streamlit dashboard.")
     subparsers.add_parser("api", help="Run the model-serving API.")
+    subparsers.add_parser("train", help="Train and compare churn prediction models.")
 
     return parser
 
@@ -42,6 +48,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_dashboard()
     if args.command == "api":
         return run_api()
+    if args.command == "train":
+        return run_training()
 
     parser.print_help()
     return 0

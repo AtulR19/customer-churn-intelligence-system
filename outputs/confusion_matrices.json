@@ -1,0 +1,62 @@
+{
+  "Logistic Regression": {
+    "labels": {
+      "0": "No churn",
+      "1": "Churn"
+    },
+    "matrix": [
+      [
+        747,
+        288
+      ],
+      [
+        81,
+        293
+      ]
+    ],
+    "true_negative": 747,
+    "false_positive": 288,
+    "false_negative": 81,
+    "true_positive": 293
+  },
+  "Random Forest": {
+    "labels": {
+      "0": "No churn",
+      "1": "Churn"
+    },
+    "matrix": [
+      [
+        924,
+        111
+      ],
+      [
+        199,
+        175
+      ]
+    ],
+    "true_negative": 924,
+    "false_positive": 111,
+    "false_negative": 199,
+    "true_positive": 175
+  },
+  "XGBoost": {
+    "labels": {
+      "0": "No churn",
+      "1": "Churn"
+    },
+    "matrix": [
+      [
+        779,
+        256
+      ],
+      [
+        87,
+        287
+      ]
+    ],
+    "true_negative": 779,
+    "false_positive": 256,
+    "false_negative": 87,
+    "true_positive": 287
+  }
+}
