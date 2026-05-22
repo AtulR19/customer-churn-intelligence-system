@@ -27,6 +27,11 @@ def run_training() -> int:
     return subprocess.call([sys.executable, "-m", "src.training.train_model"])
 
 
+def run_explainability() -> int:
+    """Generate SHAP explainability artifacts."""
+    return subprocess.call([sys.executable, "-m", "src.utils.explainability"])
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Customer Churn Intelligence System command runner."
@@ -36,6 +41,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("dashboard", help="Run the Streamlit dashboard.")
     subparsers.add_parser("api", help="Run the model-serving API.")
     subparsers.add_parser("train", help="Train and compare churn prediction models.")
+    subparsers.add_parser("explain", help="Generate SHAP explainability artifacts.")
 
     return parser
 
@@ -50,6 +56,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_api()
     if args.command == "train":
         return run_training()
+    if args.command == "explain":
+        return run_explainability()
 
     parser.print_help()
     return 0

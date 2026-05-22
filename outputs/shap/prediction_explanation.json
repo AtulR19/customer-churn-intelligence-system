@@ -1,0 +1,225 @@
+{
+  "model_name": "Logistic Regression",
+  "row_index": 1976,
+  "customer_id": "9497-QCMMS",
+  "predicted_probability_churn": 0.9390011822569964,
+  "predicted_label": "Yes",
+  "predicted_class": 1,
+  "expected_model_output": -0.7734432399018052,
+  "model_output_after_shap_contributions": 2.7339622555438474,
+  "output_note": "For linear and tree explainers, SHAP values explain model output space; probability is reported separately.",
+  "raw_customer_context": {
+    "customerID": "9497-QCMMS",
+    "Contract": "Month-to-month",
+    "tenure": 1,
+    "MonthlyCharges": 93.55,
+    "TotalCharges": 93.55,
+    "InternetService": "Fiber optic",
+    "PaymentMethod": "Electronic check",
+    "TechSupport": "No",
+    "OnlineSecurity": "No",
+    "Churn": "Yes"
+  },
+  "top_features_by_absolute_impact": [
+    {
+      "feature": "tenure",
+      "transformed_value": -1.2816237461508113,
+      "shap_value": 1.5530100888116496,
+      "absolute_shap_value": 1.5530100888116496,
+      "direction": "increases churn risk"
+    },
+    {
+      "feature": "MonthlyCharges",
+      "transformed_value": 0.9497139580086216,
+      "shap_value": -0.639475010828904,
+      "absolute_shap_value": 0.639475010828904,
+      "direction": "decreases churn risk"
+    },
+    {
+      "feature": "TotalCharges",
+      "transformed_value": -0.9693376661401722,
+      "shap_value": -0.4677864952860207,
+      "absolute_shap_value": 0.4677864952860207,
+      "direction": "decreases churn risk"
+    },
+    {
+      "feature": "InternetService_Fiber optic",
+      "transformed_value": 1.0,
+      "shap_value": 0.36967187998059314,
+      "absolute_shap_value": 0.36967187998059314,
+      "direction": "increases churn risk"
+    },
+    {
+      "feature": "Contract_Month-to-month",
+      "transformed_value": 1.0,
+      "shap_value": 0.3036356124429365,
+      "absolute_shap_value": 0.3036356124429365,
+      "direction": "increases churn risk"
+    },
+    {
+      "feature": "Contract_Two year",
+      "transformed_value": 0.0,
+      "shap_value": 0.20183866826130598,
+      "absolute_shap_value": 0.20183866826130598,
+      "direction": "increases churn risk"
+    },
+    {
+      "feature": "InternetService_DSL",
+      "transformed_value": 0.0,
+      "shap_value": 0.18678183126332581,
+      "absolute_shap_value": 0.18678183126332581,
+      "direction": "increases churn risk"
+    },
+    {
+      "feature": "StreamingMovies_Yes",
+      "transformed_value": 1.0,
+      "shap_value": 0.1862789626483288,
+      "absolute_shap_value": 0.1862789626483288,
+      "direction": "increases churn risk"
+    },
+    {
+      "feature": "PaymentMethod_Electronic check",
+      "transformed_value": 1.0,
+      "shap_value": 0.17343754812150766,
+      "absolute_shap_value": 0.17343754812150766,
+      "direction": "increases churn risk"
+    },
+    {
+      "feature": "StreamingTV_Yes",
+      "transformed_value": 1.0,
+      "shap_value": 0.1536059641011246,
+      "absolute_shap_value": 0.1536059641011246,
+      "direction": "increases churn risk"
+    }
+  ],
+  "top_features_increasing_churn_risk": [
+    {
+      "feature": "tenure",
+      "transformed_value": -1.2816237461508113,
+      "shap_value": 1.5530100888116496,
+      "absolute_shap_value": 1.5530100888116496,
+      "direction": "increases churn risk"
+    },
+    {
+      "feature": "InternetService_Fiber optic",
+      "transformed_value": 1.0,
+      "shap_value": 0.36967187998059314,
+      "absolute_shap_value": 0.36967187998059314,
+      "direction": "increases churn risk"
+    },
+    {
+      "feature": "Contract_Month-to-month",
+      "transformed_value": 1.0,
+      "shap_value": 0.3036356124429365,
+      "absolute_shap_value": 0.3036356124429365,
+      "direction": "increases churn risk"
+    },
+    {
+      "feature": "Contract_Two year",
+      "transformed_value": 0.0,
+      "shap_value": 0.20183866826130598,
+      "absolute_shap_value": 0.20183866826130598,
+      "direction": "increases churn risk"
+    },
+    {
+      "feature": "InternetService_DSL",
+      "transformed_value": 0.0,
+      "shap_value": 0.18678183126332581,
+      "absolute_shap_value": 0.18678183126332581,
+      "direction": "increases churn risk"
+    },
+    {
+      "feature": "StreamingMovies_Yes",
+      "transformed_value": 1.0,
+      "shap_value": 0.1862789626483288,
+      "absolute_shap_value": 0.1862789626483288,
+      "direction": "increases churn risk"
+    },
+    {
+      "feature": "PaymentMethod_Electronic check",
+      "transformed_value": 1.0,
+      "shap_value": 0.17343754812150766,
+      "absolute_shap_value": 0.17343754812150766,
+      "direction": "increases churn risk"
+    },
+    {
+      "feature": "StreamingTV_Yes",
+      "transformed_value": 1.0,
+      "shap_value": 0.1536059641011246,
+      "absolute_shap_value": 0.1536059641011246,
+      "direction": "increases churn risk"
+    },
+    {
+      "feature": "SeniorCitizen_0",
+      "transformed_value": 0.0,
+      "shap_value": 0.1443113424525318,
+      "absolute_shap_value": 0.1443113424525318,
+      "direction": "increases churn risk"
+    },
+    {
+      "feature": "MultipleLines_No",
+      "transformed_value": 0.0,
+      "shap_value": 0.11090593306639224,
+      "absolute_shap_value": 0.11090593306639224,
+      "direction": "increases churn risk"
+    }
+  ],
+  "top_features_decreasing_churn_risk": [
+    {
+      "feature": "MonthlyCharges",
+      "transformed_value": 0.9497139580086216,
+      "shap_value": -0.639475010828904,
+      "absolute_shap_value": 0.639475010828904,
+      "direction": "decreases churn risk"
+    },
+    {
+      "feature": "TotalCharges",
+      "transformed_value": -0.9693376661401722,
+      "shap_value": -0.4677864952860207,
+      "absolute_shap_value": 0.4677864952860207,
+      "direction": "decreases churn risk"
+    },
+    {
+      "feature": "Partner_No",
+      "transformed_value": 1.0,
+      "shap_value": -0.0490124666119759,
+      "absolute_shap_value": 0.0490124666119759,
+      "direction": "decreases churn risk"
+    },
+    {
+      "feature": "gender_Male",
+      "transformed_value": 1.0,
+      "shap_value": -0.03634780123974366,
+      "absolute_shap_value": 0.03634780123974366,
+      "direction": "decreases churn risk"
+    },
+    {
+      "feature": "DeviceProtection_Yes",
+      "transformed_value": 0.0,
+      "shap_value": -0.02811313373099148,
+      "absolute_shap_value": 0.02811313373099148,
+      "direction": "decreases churn risk"
+    },
+    {
+      "feature": "SeniorCitizen_1",
+      "transformed_value": 1.0,
+      "shap_value": -0.014352605737810402,
+      "absolute_shap_value": 0.014352605737810402,
+      "direction": "decreases churn risk"
+    },
+    {
+      "feature": "PhoneService_Yes",
+      "transformed_value": 1.0,
+      "shap_value": -0.0077997450492376524,
+      "absolute_shap_value": 0.0077997450492376524,
+      "direction": "decreases churn risk"
+    },
+    {
+      "feature": "OnlineBackup_Yes",
+      "transformed_value": 0.0,
+      "shap_value": -0.005652337459239882,
+      "absolute_shap_value": 0.005652337459239882,
+      "direction": "decreases churn risk"
+    }
+  ]
+}

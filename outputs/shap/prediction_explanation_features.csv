@@ -1,0 +1,47 @@
+feature,transformed_value,shap_value,absolute_shap_value,direction
+tenure,-1.2816237461508113,1.5530100888116496,1.5530100888116496,increases churn risk
+MonthlyCharges,0.9497139580086216,-0.639475010828904,0.639475010828904,decreases churn risk
+TotalCharges,-0.9693376661401722,-0.4677864952860207,0.4677864952860207,decreases churn risk
+InternetService_Fiber optic,1.0,0.36967187998059314,0.36967187998059314,increases churn risk
+Contract_Month-to-month,1.0,0.3036356124429365,0.3036356124429365,increases churn risk
+Contract_Two year,0.0,0.20183866826130598,0.20183866826130598,increases churn risk
+InternetService_DSL,0.0,0.18678183126332581,0.18678183126332581,increases churn risk
+StreamingMovies_Yes,1.0,0.1862789626483288,0.1862789626483288,increases churn risk
+PaymentMethod_Electronic check,1.0,0.17343754812150766,0.17343754812150766,increases churn risk
+StreamingTV_Yes,1.0,0.1536059641011246,0.1536059641011246,increases churn risk
+SeniorCitizen_0,0.0,0.1443113424525318,0.1443113424525318,increases churn risk
+MultipleLines_No,0.0,0.11090593306639224,0.11090593306639224,increases churn risk
+PaperlessBilling_No,0.0,0.09931560891272674,0.09931560891272674,increases churn risk
+OnlineSecurity_No,1.0,0.0961182458943534,0.0961182458943534,increases churn risk
+StreamingMovies_No,0.0,0.0853771253265477,0.0853771253265477,increases churn risk
+TechSupport_No,1.0,0.08485955205896473,0.08485955205896473,increases churn risk
+MultipleLines_Yes,1.0,0.08387557781023341,0.08387557781023341,increases churn risk
+Dependents_Yes,0.0,0.07286569867375911,0.07286569867375911,increases churn risk
+StreamingTV_No,0.0,0.06355314426602056,0.06355314426602056,increases churn risk
+OnlineBackup_No internet service,0.0,0.0604922616653952,0.0604922616653952,increases churn risk
+OnlineSecurity_No internet service,0.0,0.0604922616653952,0.0604922616653952,increases churn risk
+InternetService_No,0.0,0.0604922616653952,0.0604922616653952,increases churn risk
+StreamingTV_No internet service,0.0,0.0604922616653952,0.0604922616653952,increases churn risk
+DeviceProtection_No internet service,0.0,0.0604922616653952,0.0604922616653952,increases churn risk
+TechSupport_No internet service,0.0,0.0604922616653952,0.0604922616653952,increases churn risk
+StreamingMovies_No internet service,0.0,0.060492261665395175,0.060492261665395175,increases churn risk
+gender_Female,0.0,0.05138402893740293,0.05138402893740293,increases churn risk
+Partner_No,1.0,-0.0490124666119759,0.0490124666119759,decreases churn risk
+PaymentMethod_Bank transfer (automatic),0.0,0.04172527145439806,0.04172527145439806,increases churn risk
+Partner_Yes,0.0,0.04058599825010205,0.04058599825010205,increases churn risk
+PaymentMethod_Credit card (automatic),0.0,0.03999619156201556,0.03999619156201556,increases churn risk
+gender_Male,1.0,-0.03634780123974366,0.03634780123974366,decreases churn risk
+OnlineBackup_No,1.0,0.03611932086128528,0.03611932086128528,increases churn risk
+OnlineSecurity_Yes,0.0,0.029105696963794996,0.029105696963794996,increases churn risk
+PaperlessBilling_Yes,1.0,0.028383490897675778,0.028383490897675778,increases churn risk
+DeviceProtection_Yes,0.0,-0.02811313373099148,0.02811313373099148,decreases churn risk
+TechSupport_Yes,0.0,0.022646077164288805,0.022646077164288805,increases churn risk
+PaymentMethod_Mailed check,0.0,0.022487298210376757,0.022487298210376757,increases churn risk
+SeniorCitizen_1,1.0,-0.014352605737810402,0.014352605737810402,decreases churn risk
+Contract_One year,0.0,0.014087663315872563,0.014087663315872563,increases churn risk
+PhoneService_No,0.0,0.010866601796647595,0.010866601796647595,increases churn risk
+MultipleLines_No phone service,0.0,0.010866601796647595,0.010866601796647595,increases churn risk
+PhoneService_Yes,1.0,-0.0077997450492376524,0.0077997450492376524,decreases churn risk
+Dependents_No,1.0,0.007533484712529559,0.007533484712529559,increases churn risk
+DeviceProtection_No,1.0,0.0072687497164709534,0.0072687497164709534,increases churn risk
+OnlineBackup_Yes,0.0,-0.005652337459239882,0.005652337459239882,decreases churn risk
